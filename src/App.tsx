@@ -40,12 +40,7 @@ const Review = lazy(() => import("./components/Review"))
 const Legal = lazy(() => import("./components/Legal"))
 import type { PracticeInput } from "./lib/store"
 
-// Google's popup flow is blocked inside Android WebViews; native Google
-// sign-in needs the Capacitor Firebase plugin (see MOBILE.md).
-const isNative = Boolean(
-  (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } })
-    .Capacitor?.isNativePlatform?.(),
-)
+
 
 type Screen = "today" | "paths" | "learn" | "focus" | "review"
 
@@ -280,8 +275,6 @@ function AuthScreen({
               ? "Your goals and focus history are waiting."
               : "A private place for the work that matters."}
           </p>
-          {!isNative && (
-          <>
           <button
             type="button"
             className="google-button"
@@ -294,8 +287,6 @@ function AuthScreen({
           <div className="auth-divider">
             <span>or use email</span>
           </div>
-          </>
-          )}
           <form onSubmit={submit}>
             {mode === "signup" && (
               <label>
@@ -868,6 +859,12 @@ export default function App() {
   const [analyticsOn, setAnalyticsOn] = useState(
     () => localStorage.getItem("zenith:analytics-optout") !== "1",
   )
+  const [voicePref, setVoiceState] = useState<"male" | "female" | "mute">(
+    () => (localStorage.getItem("zenith:voice") as any) || "mute"
+  )
+  const [bgmOn, setBgmOn] = useState(
+    () => localStorage.getItem("zenith:bgm") === "1"
+  )
 
   const selectedGoal = useMemo(
     () => state.goals.find((goal) => goal.id === selectedGoalId),
@@ -940,15 +937,20 @@ export default function App() {
   }, [state.skills, reminders, dataReady])
 
   async function toggleReminders() {
-    const mod = await import("./lib/notifications")
-    if (reminders) {
-      await mod.disableReminders()
+    try {
+      const mod = await import("./lib/notifications")
+      if (reminders) {
+        await mod.disableReminders()
+        setReminders(false)
+        setToast("Reminders off")
+      } else {
+        const granted = await mod.enableReminders()
+        setReminders(granted)
+        setToast(granted ? "Reminders on" : "Notifications are blocked in settings")
+      }
+    } catch (e) {
       setReminders(false)
-      setToast("Reminders off")
-    } else {
-      const granted = await mod.enableReminders()
-      setReminders(granted)
-      setToast(granted ? "Reminders on" : "Notifications are blocked in settings")
+      setToast("Failed to enable reminders on this device.")
     }
   }
 
@@ -1022,6 +1024,7 @@ export default function App() {
       ],
     }))
     setToast("Focus capsule saved")
+    setScreen("today")
     track("focus_completed", { seconds: elapsed })
   }
 
@@ -1122,6 +1125,25 @@ export default function App() {
     }))
     setToast("Mastery path created")
     track("skill_created", { components: draft.subskills.length })
+  }
+
+  function addSubskill(skillId: string, title: string) {
+    setState((current) => ({
+      ...current,
+      skills: current.skills.map((skill) =>
+        skill.id === skillId
+          ? {
+              ...skill,
+              updatedAt: new Date().toISOString(),
+              subskills: [
+                ...(skill.subskills || []),
+                { id: crypto.randomUUID(), title, strength: 0, reps: 0 },
+              ],
+            }
+          : skill,
+      ),
+    }))
+    setToast("Component added to skill")
   }
 
   function recordSkillPractice(
@@ -1279,6 +1301,7 @@ export default function App() {
               <Learn
                 state={state}
                 onAddSkill={addSkill}
+                onAddSubskill={addSubskill}
                 onPractice={recordSkillPractice}
                 onDelete={deleteSkill}
               />
@@ -1327,6 +1350,34 @@ export default function App() {
                 : "Nothing leaves this device. Sign in to back up and sync across devices."}
             </p>
             <div className="settings-list">
+              <button type="button" onClick={() => {
+                const map = { mute: "male", male: "female", female: "mute" } as const;
+                const next = map[voicePref];
+                import("./lib/audio").then(m => {
+                  m.setVoicePref(next);
+                  setVoiceState(next);
+                  if (next !== "mute") m.speakMotivation();
+                })
+              }}>
+                <span>
+                  <strong>Voice motivation</strong>
+                  <small>Receive encouragement during focus sessions.</small>
+                </span>
+                <span style={{color: "var(--blue)", fontSize: "12px", fontWeight: "bold", textTransform: "uppercase"}}>{voicePref}</span>
+              </button>
+              <button type="button" onClick={() => {
+                const next = !bgmOn;
+                import("./lib/audio").then(m => {
+                  m.setBgmEnabled(next);
+                  setBgmOn(next);
+                })
+              }}>
+                <span>
+                  <strong>Background music</strong>
+                  <small>Plays automatically during focus capsules.</small>
+                </span>
+                <i className={`switch ${bgmOn ? "on" : ""}`} />
+              </button>
               <button type="button" onClick={toggleReminders}>
                 <span>
                   <strong>Practice reminders</strong>

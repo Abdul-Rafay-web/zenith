@@ -132,12 +132,29 @@ export async function login(email: string, password: string) {
 
 export async function loginWithGoogle() {
   const { auth } = services()
-  const provider = new GoogleAuthProvider()
-  provider.setCustomParameters({ prompt: "select_account" })
-  const credential = await signInWithPopup(auth, provider)
-  user = credential.user
-  await ensureProfile(credential.user).catch(() => undefined)
-  return publicUser(credential.user)
+  let credentialUser: User | null = null
+  
+  const { Capacitor } = await import("@capacitor/core")
+  if (Capacitor.isNativePlatform()) {
+    const { FirebaseAuthentication } = await import("@capacitor-firebase/authentication")
+    const result = await FirebaseAuthentication.signInWithGoogle()
+    const { GoogleAuthProvider, signInWithCredential } = await import("firebase/auth")
+    const credential = GoogleAuthProvider.credential(result.credential?.idToken)
+    const userCredential = await signInWithCredential(auth, credential)
+    credentialUser = userCredential.user
+  } else {
+    const provider = new GoogleAuthProvider()
+    provider.setCustomParameters({ prompt: "select_account" })
+    const credential = await signInWithPopup(auth, provider)
+    credentialUser = credential.user
+  }
+  
+  user = credentialUser
+  if (credentialUser) {
+    await ensureProfile(credentialUser).catch(() => undefined)
+    return publicUser(credentialUser)
+  }
+  throw new Error("Google sign in failed")
 }
 
 export async function logout() {

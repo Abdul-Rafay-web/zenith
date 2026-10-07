@@ -3,6 +3,7 @@ import {
   ArrowRight,
   BrainCircuit,
   Flame,
+  Info,
   Pause,
   Play,
   Plus,
@@ -372,15 +373,19 @@ function PracticeStage({
 export default function Learn({
   state,
   onAddSkill,
+  onAddSubskill,
   onPractice,
   onDelete,
 }: {
   state: ZenithState
   onAddSkill: (draft: SkillDraft) => void
+  onAddSubskill: (skillId: string, title: string) => void
   onPractice: (skillId: string, quality: number, input: PracticeInput) => PracticeResult | undefined
   onDelete: (skillId: string) => void
 }) {
   const [adding, setAdding] = useState(false)
+  const [showScience, setShowScience] = useState(false)
+  const [newSubskill, setNewSubskill] = useState("")
   const [selectedId, setSelectedId] = useState<string>()
   const due = useMemo(
     () => state.skills.filter((s) => new Date(s.nextReviewAt).getTime() <= Date.now()),
@@ -466,28 +471,55 @@ export default function Learn({
               >
                 <Trash2 size={13} />
               </button>
+              {skill.id === featured?.id && (
+                <form
+                  className="sub-add"
+                  style={{ marginTop: "10px", display: "flex", gap: "8px" }}
+                  onSubmit={(e) => {
+                    e.preventDefault()
+                    if (newSubskill.trim()) {
+                      onAddSubskill(skill.id, newSubskill.trim())
+                      setNewSubskill("")
+                    }
+                  }}
+                >
+                  <input
+                    value={newSubskill}
+                    onChange={(e) => setNewSubskill(e.target.value)}
+                    placeholder="Add new subskill component"
+                    style={{ flex: 1, padding: "8px 12px", borderRadius: "8px", background: "rgba(255,255,255,0.05)", border: "none", color: "white" }}
+                  />
+                  <button type="submit" className="primary-button" style={{ padding: "8px 12px", borderRadius: "8px" }}>
+                    <Plus size={14} />
+                  </button>
+                </form>
+              )}
             </article>
           ))}
         </section>
       )}
 
       <section className="learning-loop">
-        <div className="section-heading">
+        <div className="section-heading" style={{ cursor: "pointer" }} onClick={() => setShowScience(!showScience)}>
           <div>
             <p className="eyebrow">The science behind each rep</p>
             <h2>Built for your brain, not against it</h2>
           </div>
-          <span className="ethical-badge">No shame mechanics</span>
+          <button type="button" className="ghost-button">
+            <Info size={16} /> {showScience ? "Hide" : "Learn more"}
+          </button>
         </div>
-        <div className="loop-grid principles">
-          {PRINCIPLES.map(([label, tag, copy], i) => (
-            <article key={label}>
-              <span>{String(i + 1).padStart(2, "0")} · {tag}</span>
-              <strong>{label}</strong>
-              <p>{copy}</p>
-            </article>
-          ))}
-        </div>
+        {showScience && (
+          <div className="loop-grid principles">
+            {PRINCIPLES.map(([label, tag, copy], i) => (
+              <article key={label}>
+                <span>{String(i + 1).padStart(2, "0")} · {tag}</span>
+                <strong>{label}</strong>
+                <p>{copy}</p>
+              </article>
+            ))}
+          </div>
+        )}
       </section>
     </main>
   )

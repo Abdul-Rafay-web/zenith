@@ -45,17 +45,35 @@ export default function Focus({
     setCustomMinutes(Math.min(180, Math.max(1, Math.round(value))))
 
   useEffect(() => {
-    if (!running) return
+    if (!running) {
+      import("../lib/audio").then(m => m.pauseBgm())
+      return
+    }
+    import("../lib/audio").then(m => m.playBgm())
+    
     const deadline = Date.now() + remaining * 1000
     const timer = window.setInterval(() => {
       const next = Math.max(0, Math.ceil((deadline - Date.now()) / 1000))
+      
+      // Occasionally speak motivation every 5 minutes (300s) of remaining time
+      if (next > 0 && next % 300 === 0 && remaining !== next) {
+        import("../lib/audio").then(m => m.speakMotivation())
+      }
+      
       setRemaining(next)
       if (next === 0) {
         setRunning(false)
+        import("../lib/audio").then(m => {
+          m.pauseBgm()
+          m.speakMotivation()
+        })
         onComplete(targetSeconds)
       }
     }, 250)
-    return () => window.clearInterval(timer)
+    return () => {
+      window.clearInterval(timer)
+      import("../lib/audio").then(m => m.pauseBgm())
+    }
   }, [running])
 
   const elapsed = targetSeconds - remaining

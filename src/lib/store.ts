@@ -142,7 +142,7 @@ export function loadState(scope = "guest"): ZenithState {
     if (!saved && scope === "guest") {
       saved = localStorage.getItem(LEGACY_STORAGE_KEY)
     }
-    if (!saved) return scope === "guest" ? seedState : emptyState
+    if (!saved) return emptyState
     const parsed = JSON.parse(saved) as Partial<ZenithState>
     return {
       goals: parsed.goals || [],
@@ -150,7 +150,7 @@ export function loadState(scope = "guest"): ZenithState {
       skills: parsed.skills || [],
     }
   } catch {
-    return scope === "guest" ? seedState : emptyState
+    return emptyState
   }
 }
 

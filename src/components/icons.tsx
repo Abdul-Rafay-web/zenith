@@ -14,6 +14,7 @@ import { CloudSlash } from "@phosphor-icons/react/dist/csr/CloudSlash"
 import { Fire } from "@phosphor-icons/react/dist/csr/Fire"
 import { GearSix } from "@phosphor-icons/react/dist/csr/GearSix"
 import { House } from "@phosphor-icons/react/dist/csr/House"
+import { Info as PInfo } from "@phosphor-icons/react/dist/csr/Info"
 import { MapTrifold } from "@phosphor-icons/react/dist/csr/MapTrifold"
 import { Pause as PPause } from "@phosphor-icons/react/dist/csr/Pause"
 import { Play as PPlay } from "@phosphor-icons/react/dist/csr/Play"
@@ -42,6 +43,7 @@ export const Cloud = make(PCloud, "duotone")
 export const CloudOff = make(CloudSlash, "duotone")
 export const Flame = make(Fire, "fill")
 export const Home = make(House, "duotone")
+export const Info = make(PInfo, "duotone")
 export const LogOut = make(SignOut)
 export const Map = make(MapTrifold, "duotone")
 export const Pause = make(PPause, "fill")
