@@ -1,0 +1,10 @@
+{
+  "description": "Organize and track long-term goals with customizable mini goals and timers, featuring a unique, visually stunning interface for enhanced productivity.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

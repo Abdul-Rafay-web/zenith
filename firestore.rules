@@ -1,0 +1,113 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function owns(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function validGoal() {
+      return request.resource.data.title is string
+        && request.resource.data.title.size() > 0
+        && request.resource.data.title.size() <= 120
+        && request.resource.data.why is string
+        && request.resource.data.why.size() <= 600
+        && request.resource.data.weeklyMinutes is int
+        && request.resource.data.weeklyMinutes >= 0
+        && request.resource.data.weeklyMinutes <= 10080;
+    }
+
+    function validProfile() {
+      return request.resource.data.displayName is string
+        && request.resource.data.displayName.size() <= 80
+        && request.resource.data.email is string
+        && request.resource.data.email.size() <= 254;
+    }
+
+    function validSession() {
+      return request.resource.data.goalId is string
+        && request.resource.data.title is string
+        && request.resource.data.title.size() <= 160
+        && request.resource.data.plannedSeconds is int
+        && request.resource.data.plannedSeconds >= 60
+        && request.resource.data.plannedSeconds <= 43200
+        && request.resource.data.actualSeconds is int
+        && request.resource.data.actualSeconds >= 0
+        && request.resource.data.actualSeconds <= 86400;
+    }
+
+    function validSkill() {
+      return request.resource.data.title is string
+        && request.resource.data.title.size() > 0
+        && request.resource.data.title.size() <= 120
+        && request.resource.data.purpose is string
+        && request.resource.data.purpose.size() <= 600
+        && request.resource.data.currentLevel is int
+        && request.resource.data.currentLevel >= 1
+        && request.resource.data.currentLevel <= 5
+        && request.resource.data.confidence is int
+        && request.resource.data.confidence >= 0
+        && request.resource.data.confidence <= 100
+        && (!('log' in request.resource.data)
+            || (request.resource.data.log is list && request.resource.data.log.size() <= 60))
+        && (!('subskills' in request.resource.data)
+            || (request.resource.data.subskills is list && request.resource.data.subskills.size() <= 8))
+        && (!('intention' in request.resource.data)
+            || (request.resource.data.intention is string && request.resource.data.intention.size() <= 300));
+    }
+
+    match /users/{userId} {
+      allow read, delete: if owns(userId);
+      allow create, update: if owns(userId) && validProfile();
+
+      match /goals/{goalId} {
+        allow read, delete: if owns(userId);
+        allow create, update: if owns(userId) && validGoal();
+      }
+
+      match /focusSessions/{sessionId} {
+        allow read, delete: if owns(userId);
+        allow create, update: if owns(userId) && validSession();
+      }
+
+      // verifiedXp / verifiedAt are written only by the optional (Blaze-plan)
+      // verifySkillProgress function. On the free plan the XP-jump cap below
+      // is the guard.
+      match /skills/{skillId} {
+        allow read, delete: if owns(userId);
+        allow create: if owns(userId) && validSkill()
+          && !request.resource.data.keys().hasAny(['verifiedXp', 'verifiedAt'])
+          && request.resource.data.get('xp', 0) <= 1200;
+        allow update: if owns(userId) && validSkill()
+          && !request.resource.data.diff(resource.data).affectedKeys()
+                .hasAny(['verifiedXp', 'verifiedAt'])
+          // Free-plan anti-cheat: one write can add at most a full day of reps (offline writes merge).
+          && request.resource.data.get('xp', 0) <= resource.data.get('xp', 0) + 1200;
+      }
+
+      // Crash reports: append-only, size-capped, never readable by clients.
+      match /diagnostics/{reportId} {
+        allow create: if owns(userId)
+          && request.resource.data.keys().hasOnly(['context', 'message', 'stack', 'agent', 'at'])
+          && request.resource.data.message is string
+          && request.resource.data.message.size() <= 500
+          && request.resource.data.stack is string
+          && request.resource.data.stack.size() <= 2000
+          && request.resource.data.context is string
+          && request.resource.data.context.size() <= 60
+          && request.resource.data.agent is string
+          && request.resource.data.agent.size() <= 200
+          && request.resource.data.at is string;
+        allow read, update, delete: if false;
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
