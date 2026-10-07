@@ -8,8 +8,10 @@ android {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         // CI passes these so every build is uniquely installable/upgradable.
-        versionCode (System.getenv("VERSION_CODE") ?: "1").toInteger()
-        versionName System.getenv("VERSION_NAME") ?: "1.0.0"
+        def vCode = System.getenv("VERSION_CODE") ?: "1"
+        versionCode vCode.toInteger()
+        def vName = System.getenv("VERSION_NAME") ?: "1.0.0"
+        versionName vName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
