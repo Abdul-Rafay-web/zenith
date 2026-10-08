@@ -374,18 +374,21 @@ export default function Learn({
   state,
   onAddSkill,
   onAddSubskill,
+  onAddLink,
   onPractice,
   onDelete,
 }: {
   state: ZenithState
   onAddSkill: (draft: SkillDraft) => void
   onAddSubskill: (skillId: string, title: string) => void
+  onAddLink: (skillId: string, url: string) => void
   onPractice: (skillId: string, quality: number, input: PracticeInput) => PracticeResult | undefined
   onDelete: (skillId: string) => void
 }) {
   const [adding, setAdding] = useState(false)
   const [showScience, setShowScience] = useState(false)
   const [newSubskill, setNewSubskill] = useState("")
+  const [newLink, setNewLink] = useState("")
   const [selectedId, setSelectedId] = useState<string>()
   const due = useMemo(
     () => state.skills.filter((s) => new Date(s.nextReviewAt).getTime() <= Date.now()),
@@ -428,6 +431,37 @@ export default function Learn({
             due={due.includes(featured)}
             onPractice={(q, input) => onPractice(featured.id, q, input)}
           />
+          
+          <div className="skill-links">
+            <h3>Resources & Documents</h3>
+            {featured.links && featured.links.length > 0 && (
+              <ul className="link-list">
+                {featured.links.map((link, i) => (
+                  <li key={i}>
+                    <a href={link} target="_blank" rel="noreferrer">{link}</a>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <form
+              className="link-add"
+              onSubmit={(e) => {
+                e.preventDefault()
+                if (newLink.trim()) {
+                  onAddLink(featured.id, newLink.trim())
+                  setNewLink("")
+                }
+              }}
+            >
+              <input 
+                type="url" 
+                placeholder="Paste a link to a PDF, Google Doc, etc." 
+                value={newLink} 
+                onChange={(e) => setNewLink(e.target.value)} 
+              />
+              <button type="submit"><Plus size={14}/></button>
+            </form>
+          </div>
         </>
       ) : (
         !adding && (

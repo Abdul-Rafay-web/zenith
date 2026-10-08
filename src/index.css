@@ -107,8 +107,8 @@ textarea:focus-visible {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: calc(72px + var(--safe-top));
-  padding: var(--safe-top) 22px 0;
+  height: auto;
+  padding: calc(var(--safe-top) + 12px) 22px 12px;
   border-bottom: 1px solid var(--line);
   background: rgba(11, 8, 21, 0.72);
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.14);
@@ -2552,3 +2552,19 @@ h1 {
   font-size: 11px;
   margin-right: 4px;
 }
+
+.skill-links {
+  max-width: 680px;
+  margin: 40px auto 20px;
+  padding: 24px;
+  background: var(--night-raised);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.skill-links h3 { margin-bottom: 12px; font-size: 15px; }
+.link-list { list-style: none; padding: 0; margin: 0 0 16px; display: flex; flex-direction: column; gap: 8px; }
+.link-list a { color: var(--blue-bright); text-decoration: underline; word-break: break-all; }
+.link-add { display: flex; gap: 8px; }
+.link-add input { flex: 1; background: rgba(0,0,0,0.2); border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; color: #fff; }
+.link-add button { padding: 0 16px; background: var(--blue); color: var(--night); border: none; border-radius: 6px; font-weight: 600; cursor: pointer; }
+

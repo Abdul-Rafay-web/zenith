@@ -364,7 +364,7 @@ function AuthScreen({
           </form>
           <button
             type="button"
-            className="auth-switch"
+            className="auth-switch text-[16px] font-semibold mt-4 text-blue-400 hover:text-blue-300 transition-colors"
             onClick={() => {
               setMode((current) => (current === "login" ? "signup" : "login"))
               setError("")
@@ -1146,6 +1146,22 @@ export default function App() {
     setToast("Component added to skill")
   }
 
+  function addLink(skillId: string, url: string) {
+    setState((current) => ({
+      ...current,
+      skills: current.skills.map((skill) =>
+        skill.id === skillId
+          ? {
+              ...skill,
+              updatedAt: new Date().toISOString(),
+              links: [...(skill.links || []), url],
+            }
+          : skill,
+      ),
+    }))
+    setToast("Resource link added to skill")
+  }
+
   function recordSkillPractice(
     skillId: string,
     quality: number,
@@ -1303,6 +1319,7 @@ export default function App() {
                 onAddSkill={addSkill}
                 onAddSubskill={addSubskill}
                 onPractice={recordSkillPractice}
+                onAddLink={addLink}
                 onDelete={deleteSkill}
               />
             )}

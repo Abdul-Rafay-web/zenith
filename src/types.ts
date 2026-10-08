@@ -58,6 +58,7 @@ export interface Skill {
   nextReviewAt: string
   lastPracticedAt?: string
   subskills?: SubSkill[]
+  links?: string[]
   intention?: string
   identity?: string
   xp?: number

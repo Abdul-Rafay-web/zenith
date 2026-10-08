@@ -4,4 +4,5 @@
     <string name="title_activity_main">Zenith</string>
     <string name="package_name">app.zenith.mastery</string>
     <string name="custom_url_scheme">app.zenith.mastery</string>
+    <string name="default_web_client_id">71386601069-j7d3galv3ac5m6tp50en0t6mpkodnemj.apps.googleusercontent.com</string>
 </resources>
