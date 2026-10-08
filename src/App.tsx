@@ -364,7 +364,7 @@ function AuthScreen({
           </form>
           <button
             type="button"
-            className="auth-switch text-[16px] font-semibold mt-4 text-blue-400 hover:text-blue-300 transition-colors"
+            className="auth-switch"
             onClick={() => {
               setMode((current) => (current === "login" ? "signup" : "login"))
               setError("")
