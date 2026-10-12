@@ -53,7 +53,7 @@ export async function ensureProfile(current: User) {
 export async function purgeUserData(uid: string) {
   const { db: database } = services()
   // diagnostics are unreadable to clients; the onUserDeleted function wipes them.
-  const buckets = ["goals", "focusSessions", "skills"]
+  const buckets = ["goals", "focusSessions", "skills", "enrollments"]
   for (const bucket of buckets) {
     const snapshot = await getDocs(collection(database, "users", uid, bucket))
     for (let i = 0; i < snapshot.docs.length; i += 450) {
@@ -68,15 +68,17 @@ export async function purgeUserData(uid: string) {
 export async function loadCloudState(): Promise<ZenithState | null> {
   const { db: database, uid } = services()
   if (!uid) return null
-  const [goalSnapshot, sessionSnapshot, skillSnapshot] = await Promise.all([
+  const [goalSnapshot, sessionSnapshot, skillSnapshot, enrollmentSnapshot] = await Promise.all([
     getDocs(collection(database, "users", uid, "goals")),
     getDocs(collection(database, "users", uid, "focusSessions")),
     getDocs(collection(database, "users", uid, "skills")),
+    getDocs(collection(database, "users", uid, "enrollments")),
   ])
   const cloud: ZenithState = {
     goals: goalSnapshot.docs.map((item) => item.data() as Goal),
     sessions: sessionSnapshot.docs.map((item) => item.data() as FocusSession),
     skills: skillSnapshot.docs.map((item) => item.data() as Skill),
+    enrollments: enrollmentSnapshot.docs.map((item) => item.data() as any),
   }
   // The cloud is now the known baseline: only diverging docs get written.
   const baseline: Record<string, number> = {}
@@ -85,6 +87,7 @@ export async function loadCloudState(): Promise<ZenithState | null> {
   record("goals", cloud.goals)
   record("focusSessions", cloud.sessions)
   record("skills", cloud.skills)
+  record("enrollments", cloud.enrollments)
   seedSynced(uid, baseline)
   return cloud
 }
@@ -116,6 +119,7 @@ export function syncState(state: ZenithState) {
   scan("goals", state.goals)
   scan("focusSessions", state.sessions)
   scan("skills", state.skills)
+  scan("enrollments", state.enrollments || [])
   Object.keys(synced).forEach((key) => {
     if (live.has(key) || queued.get(key)?.op === "delete") return
     const [bucket, id] = key.split("/") as [Bucket, string]

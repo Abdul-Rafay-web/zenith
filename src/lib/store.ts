@@ -1,4 +1,4 @@
-import type { Goal, PracticeLog, Skill, ZenithState } from "../types"
+import type { Goal, PracticeLog, Skill, TrackEnrollment, ZenithState } from "../types"
 import {
   clampMinutes,
   clampQuality,
@@ -19,12 +19,14 @@ export const seedState: ZenithState = {
   goals: [],
   sessions: [],
   skills: [],
+  enrollments: [],
 }
 
 export const emptyState: ZenithState = {
   goals: [],
   sessions: [],
   skills: [],
+  enrollments: [],
 }
 
 export function loadState(scope = "guest"): ZenithState {
@@ -40,6 +42,7 @@ export function loadState(scope = "guest"): ZenithState {
       goals: parsed.goals || [],
       sessions: parsed.sessions || [],
       skills: parsed.skills || [],
+      enrollments: parsed.enrollments || [],
     }
   } catch {
     return emptyState
@@ -74,6 +77,41 @@ export function mergeStates(
   )
   cloud.sessions.forEach((session) => sessions.set(session.id, session))
 
+  const enrollments = new Map(
+    (local.enrollments || []).map((e) => [e.trackId, e]),
+  )
+  ;(cloud.enrollments || []).forEach((cloudEnrollment) => {
+    const localEnrollment = enrollments.get(cloudEnrollment.trackId)
+    if (!localEnrollment) {
+      enrollments.set(cloudEnrollment.trackId, cloudEnrollment)
+    } else {
+      // Merge completions records across days
+      const mergedCompletions = { ...localEnrollment.completions }
+      Object.entries(cloudEnrollment.completions || {}).forEach(([date, tasks]) => {
+        const set = new Set([...(mergedCompletions[date] || []), ...tasks])
+        mergedCompletions[date] = Array.from(set)
+      })
+      // Merge documents across local and cloud
+      const existingDocIds = new Set((localEnrollment.documents || []).map((d) => d.id))
+      const mergedDocs = [
+        ...(localEnrollment.documents || []),
+        ...(cloudEnrollment.documents || []).filter((d) => !existingDocIds.has(d.id)),
+      ]
+      enrollments.set(cloudEnrollment.trackId, {
+        ...localEnrollment,
+        phase: Math.max(localEnrollment.phase, cloudEnrollment.phase) as 1 | 2 | 3,
+        completions: mergedCompletions,
+        documents: mergedDocs,
+        metrics: [
+          ...(localEnrollment.metrics || []),
+          ...(cloudEnrollment.metrics || []).filter(
+            (cm) => !localEnrollment.metrics?.some((lm) => lm.id === cm.id),
+          ),
+        ],
+      })
+    }
+  })
+
   return {
     goals: [...goals.values()].filter((goal) => !deleted.has(`goals/${goal.id}`)),
     sessions: [...sessions.values()]
@@ -81,6 +119,9 @@ export function mergeStates(
       .sort((a, b) => a.completedAt.localeCompare(b.completedAt)),
     skills: mergeSkills(local.skills, cloud.skills).filter(
       (skill) => !deleted.has(`skills/${skill.id}`),
+    ),
+    enrollments: [...enrollments.values()].filter(
+      (e) => !deleted.has(`enrollments/${e.trackId}`),
     ),
   }
 }

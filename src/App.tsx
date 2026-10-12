@@ -30,19 +30,19 @@ import {
   saveState,
 } from "./lib/store"
 import type { CloudUser } from "./lib/firebase"
-import type { Goal, ZenithState } from "./types"
+import type { AttachedDoc, Goal, ZenithState } from "./types"
 import type { SkillDraft } from "./components/Learn"
 import { IconButton } from "./components/ui"
+import DocumentSection from "./components/DocumentSection"
 
 const Learn = lazy(() => import("./components/Learn"))
 const Focus = lazy(() => import("./components/Focus"))
 const Review = lazy(() => import("./components/Review"))
 const Legal = lazy(() => import("./components/Legal"))
+const Tracks = lazy(() => import("./components/Tracks"))
 import type { PracticeInput } from "./lib/store"
 
-
-
-type Screen = "today" | "paths" | "learn" | "focus" | "review"
+type Screen = "today" | "paths" | "tracks" | "learn" | "focus" | "review"
 
 // Summit mark: two stacked ridges rising to a single point, with the
 // zenith star resting just above the peak.
@@ -433,23 +433,49 @@ function Today({
   onOpenGoal,
   onFocus,
   onToggle,
+  onNavigate,
 }: {
   state: ZenithState
   onOpenGoal: (goal: Goal) => void
   onFocus: (goalId: string, stepId?: string) => void
   onToggle: (goalId: string, stepId: string) => void
+  onNavigate?: (screen: Screen) => void
 }) {
   const recommended = nextStep(state.goals)
   const focusedMinutes = Math.round(
     state.sessions.reduce((sum, session) => sum + session.actualSeconds, 0) /
       60,
   )
+  const weekday = new Intl.DateTimeFormat("en-US", { weekday: "long" }).format(new Date())
+
+  const last7DaysMinutes = useMemo(() => {
+    const days: number[] = [0, 0, 0, 0, 0, 0, 0]
+    const now = new Date()
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (6 - i))
+      const dateStr = d.toISOString().slice(0, 10)
+      const daySeconds = state.sessions
+        .filter((s) => s.completedAt && s.completedAt.slice(0, 10) === dateStr)
+        .reduce((sum, s) => sum + (s.actualSeconds || 0), 0)
+      days[i] = Math.round(daySeconds / 60)
+    }
+    const maxMin = Math.max(...days, 60)
+    return days.map((m) => (m === 0 ? 0 : Math.max(12, Math.round((m / maxMin) * 100))))
+  }, [state.sessions])
+
+  const daysInMotion = useMemo(() => {
+    return new Set(
+      state.sessions
+        .map((s) => s.completedAt && s.completedAt.slice(0, 10))
+        .filter(Boolean),
+    ).size
+  }, [state.sessions])
 
   return (
     <main className="screen today-screen">
       <section className="intro">
         <div>
-          <p className="eyebrow">Thursday · Your trajectory</p>
+          <p className="eyebrow">{weekday} · Your trajectory</p>
           <h1>
             Make room for
             <br />
@@ -462,6 +488,25 @@ function Today({
       </section>
 
       <GoalOrbit goals={state.goals} onSelect={onOpenGoal} />
+
+      {state.enrollments && state.enrollments.length > 0 && onNavigate && (
+        <section className="today-tracks-card">
+          <div className="today-tracks-top">
+            <span className="recommendation-chip">
+              <Sparkles size={13} /> Active Protocols
+            </span>
+            <button
+              type="button"
+              className="ghost-link"
+              onClick={() => onNavigate("tracks")}
+            >
+              Open Tracks <ChevronRight size={14} />
+            </button>
+          </div>
+          <h3>{state.enrollments.length} Transformation Track{state.enrollments.length > 1 ? "s" : ""} in Progress</h3>
+          <p>Tap to view today&apos;s daily protocol tasks and neurochemical activation.</p>
+        </section>
+      )}
 
       {recommended && (
         <section className="next-section">
@@ -514,26 +559,39 @@ function Today({
       <section className="pulse-grid">
         <article className="metric-card">
           <span>This week</span>
-          <strong>{focusedMinutes || 86}</strong>
+          <strong>{focusedMinutes}</strong>
           <small>focused minutes</small>
           <div className="mini-bars" aria-hidden="true">
-            {[32, 54, 41, 78, 62, 26, 12].map((height, index) => (
-              <i key={index} style={{ height: `${height}%` }} />
-            ))}
+            {state.sessions.length > 0 ? (
+              last7DaysMinutes.map((height, index) => (
+                <i
+                  key={index}
+                  style={{
+                    height: height === 0 ? "4px" : `${height}%`,
+                    opacity: height === 0 ? 0.2 : 1,
+                  }}
+                />
+              ))
+            ) : (
+              [0, 0, 0, 0, 0, 0, 0].map((_, index) => (
+                <i key={index} style={{ height: "4px", opacity: 0.2 }} />
+              ))
+            )}
           </div>
         </article>
         <article className="metric-card momentum-card">
           <span>Momentum</span>
-          <strong>Steady</strong>
-          <small>4 of 7 days in motion</small>
+          <strong>{daysInMotion > 0 ? "In Motion" : "Starting"}</strong>
+          <small>
+            {daysInMotion > 0
+              ? `${daysInMotion} of 7 days in motion`
+              : "0 of 7 days in motion"}
+          </small>
           <div className="momentum-line">
-            <i />
-            <i />
-            <i />
-            <i />
-            <i />
-            <i />
-            <i />
+            {[0, 1, 2, 3, 4, 5, 6].map((idx) => {
+              const active = idx < daysInMotion
+              return <i key={idx} style={{ opacity: active ? 1 : 0.2 }} />
+            })}
           </div>
         </article>
       </section>
@@ -600,6 +658,8 @@ function GoalDetail({
   onFocus,
   onAddStep,
   onDelete,
+  onAddDocument,
+  onRemoveDocument,
 }: {
   goal: Goal
   onDelete: (goalId: string) => void
@@ -607,6 +667,8 @@ function GoalDetail({
   onToggle: (goalId: string, stepId: string) => void
   onFocus: (goalId: string, stepId?: string) => void
   onAddStep: (goalId: string, title: string, minutes: number) => void
+  onAddDocument?: (goalId: string, doc: AttachedDoc) => void
+  onRemoveDocument?: (goalId: string, docId: string) => void
 }) {
   const progress = progressFor(goal)
   const [addingStep, setAddingStep] = useState(false)
@@ -739,6 +801,18 @@ function GoalDetail({
           ))}
         </div>
       </section>
+
+      {onAddDocument && onRemoveDocument && (
+        <section className="detail-documents">
+          <DocumentSection
+            title="Path Documents & Resources"
+            description="Attach PDF guides, briefs, cheat sheets, or web reference links."
+            documents={goal.documents || []}
+            onAddDocument={(doc) => onAddDocument(goal.id, doc)}
+            onRemoveDocument={(docId) => onRemoveDocument(goal.id, docId)}
+          />
+        </section>
+      )}
     </main>
   )
 }
@@ -811,6 +885,7 @@ function BottomNav({
   }> = [
     { id: "today", label: "Today", icon: <Home size={20} /> },
     { id: "paths", label: "Paths", icon: <Map size={20} /> },
+    { id: "tracks", label: "Tracks", icon: <Sparkles size={20} /> },
     { id: "learn", label: "Learn", icon: <BrainCircuit size={20} /> },
     { id: "focus", label: "Focus", icon: <CircleDot size={21} /> },
     { id: "review", label: "Review", icon: <BarChart3 size={20} /> },
@@ -1201,6 +1276,155 @@ export default function App() {
     setToast("Path deleted")
   }
 
+  function handleEnrollTrack(trackId: string, variant?: "male" | "strength-energy") {
+    import("./lib/tracks").then(({ enrollInTrack }) => {
+      const res = enrollInTrack(state, trackId, variant)
+      setState(res.state)
+      if (res.warning) setToast(res.warning)
+      else setToast("Enrolled in 12-week protocol")
+    })
+  }
+
+  function handleUnenrollTrack(trackId: string) {
+    import("./lib/tracks").then(({ unenrollTrack }) => {
+      setState(unenrollTrack(state, trackId))
+      setToast("Unenrolled from track")
+    })
+  }
+
+  function handleToggleTrackTask(taskId: string) {
+    import("./lib/tracks").then(({ toggleTrackTask }) => {
+      setState(toggleTrackTask(state, taskId))
+    })
+  }
+
+  function handleAdvancePhase(trackId: string) {
+    import("./lib/tracks").then(({ advancePhase }) => {
+      setState(advancePhase(state, trackId))
+      setToast("Phase unlocked!")
+    })
+  }
+
+  function handleLogTrackMetric(trackId: string, metricId: string, value: number | string) {
+    import("./lib/tracks").then(({ logTrackMetric }) => {
+      setState(logTrackMetric(state, trackId, metricId, value))
+      setToast("Metric logged")
+    })
+  }
+
+  function handleRecordUrgeSurf(trackId: string, durationSeconds: number) {
+    import("./lib/tracks").then(({ recordUrgeSurf }) => {
+      setState(recordUrgeSurf(state, trackId, durationSeconds))
+      setToast("Urge successfully surfed!")
+    })
+  }
+
+  function handleSetIntention(trackId: string, key: string, trigger: string, plan: string) {
+    import("./lib/tracks").then(({ setImplementationIntention }) => {
+      setState(setImplementationIntention(state, trackId, key, trigger, plan))
+      setToast("Implementation intention rule saved")
+    })
+  }
+
+  function handleStartFocusFromTrack(title: string, minutes: number) {
+    setFocusSelection({ goalId: "track", stepId: undefined })
+    setScreen("focus")
+  }
+
+  function handleAddGoalDocument(goalId: string, doc: AttachedDoc) {
+    setState((current) => ({
+      ...current,
+      goals: current.goals.map((g) =>
+        g.id === goalId
+          ? {
+              ...g,
+              updatedAt: new Date().toISOString(),
+              documents: [...(g.documents || []), doc],
+            }
+          : g,
+      ),
+    }))
+    setToast("Document attached to path")
+  }
+
+  function handleRemoveGoalDocument(goalId: string, docId: string) {
+    setState((current) => ({
+      ...current,
+      goals: current.goals.map((g) =>
+        g.id === goalId
+          ? {
+              ...g,
+              updatedAt: new Date().toISOString(),
+              documents: (g.documents || []).filter((d) => d.id !== docId),
+            }
+          : g,
+      ),
+    }))
+    setToast("Document removed")
+  }
+
+  function handleAddSkillDocument(skillId: string, doc: AttachedDoc) {
+    setState((current) => ({
+      ...current,
+      skills: current.skills.map((s) =>
+        s.id === skillId
+          ? {
+              ...s,
+              updatedAt: new Date().toISOString(),
+              documents: [...(s.documents || []), doc],
+            }
+          : s,
+      ),
+    }))
+    setToast("Document attached to skill")
+  }
+
+  function handleRemoveSkillDocument(skillId: string, docId: string) {
+    setState((current) => ({
+      ...current,
+      skills: current.skills.map((s) =>
+        s.id === skillId
+          ? {
+              ...s,
+              updatedAt: new Date().toISOString(),
+              documents: (s.documents || []).filter((d) => d.id !== docId),
+            }
+          : s,
+      ),
+    }))
+    setToast("Document removed")
+  }
+
+  function handleAddTrackDocument(trackId: string, doc: AttachedDoc) {
+    setState((current) => ({
+      ...current,
+      enrollments: (current.enrollments || []).map((e) =>
+        e.trackId === trackId
+          ? {
+              ...e,
+              documents: [...(e.documents || []), doc],
+            }
+          : e,
+      ),
+    }))
+    setToast("Document attached to track")
+  }
+
+  function handleRemoveTrackDocument(trackId: string, docId: string) {
+    setState((current) => ({
+      ...current,
+      enrollments: (current.enrollments || []).map((e) =>
+        e.trackId === trackId
+          ? {
+              ...e,
+              documents: (e.documents || []).filter((d) => d.id !== docId),
+            }
+          : e,
+      ),
+    }))
+    setToast("Document removed")
+  }
+
   async function handleDeleteAccount() {
     if (
       !window.confirm(
@@ -1285,6 +1509,8 @@ export default function App() {
             onFocus={startFocus}
             onAddStep={addStep}
             onDelete={deleteGoal}
+            onAddDocument={handleAddGoalDocument}
+            onRemoveDocument={handleRemoveGoalDocument}
           />
         ) : (
           <>
@@ -1294,6 +1520,7 @@ export default function App() {
                 onOpenGoal={openGoal}
                 onFocus={startFocus}
                 onToggle={toggleStep}
+                onNavigate={setScreen}
               />
             )}
             {screen === "paths" && (
@@ -1301,6 +1528,24 @@ export default function App() {
                 goals={state.goals}
                 onOpenGoal={openGoal}
                 onAdd={() => setAddingGoal(true)}
+              />
+            )}
+            {screen === "tracks" && (
+              <Tracks
+                state={state}
+                onEnroll={handleEnrollTrack}
+                onUnenroll={handleUnenrollTrack}
+                onToggleTask={handleToggleTrackTask}
+                onAdvancePhase={handleAdvancePhase}
+                onLogMetric={handleLogTrackMetric}
+                onRecordUrgeSurf={handleRecordUrgeSurf}
+                onSetIntention={handleSetIntention}
+                onAddTrackDocument={handleAddTrackDocument}
+                onRemoveTrackDocument={handleRemoveTrackDocument}
+                onOpenFocus={(title, mins) => {
+                  setFocusSelection({ goalId: "track", stepId: undefined })
+                  setScreen("focus")
+                }}
               />
             )}
             {screen === "focus" && (
@@ -1321,6 +1566,8 @@ export default function App() {
                 onPractice={recordSkillPractice}
                 onAddLink={addLink}
                 onDelete={deleteSkill}
+                onAddDocument={handleAddSkillDocument}
+                onRemoveDocument={handleRemoveSkillDocument}
               />
             )}
             {screen === "review" && <Review state={state} />}

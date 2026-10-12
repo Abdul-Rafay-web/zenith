@@ -17,7 +17,8 @@ import {
   type PracticeInput,
   type PracticeResult,
 } from "../lib/store"
-import type { Skill, ZenithState } from "../types"
+import type { AttachedDoc, Skill, ZenithState } from "../types"
+import DocumentSection from "./DocumentSection"
 
 export interface SkillDraft {
   title: string
@@ -377,6 +378,8 @@ export default function Learn({
   onAddLink,
   onPractice,
   onDelete,
+  onAddDocument,
+  onRemoveDocument,
 }: {
   state: ZenithState
   onAddSkill: (draft: SkillDraft) => void
@@ -384,6 +387,8 @@ export default function Learn({
   onAddLink: (skillId: string, url: string) => void
   onPractice: (skillId: string, quality: number, input: PracticeInput) => PracticeResult | undefined
   onDelete: (skillId: string) => void
+  onAddDocument?: (skillId: string, doc: AttachedDoc) => void
+  onRemoveDocument?: (skillId: string, docId: string) => void
 }) {
   const [adding, setAdding] = useState(false)
   const [showScience, setShowScience] = useState(false)
@@ -396,6 +401,25 @@ export default function Learn({
   )
   const featured =
     state.skills.find((s) => s.id === selectedId) || due[0] || state.skills[0]
+
+  const skillDocs: AttachedDoc[] = useMemo(() => {
+    if (!featured) return []
+    const list = [...(featured.documents || [])]
+    if (featured.links) {
+      featured.links.forEach((link, i) => {
+        if (!list.some((d) => d.url === link)) {
+          list.push({
+            id: `legacy-link-${i}`,
+            name: link,
+            url: link,
+            type: "link",
+            addedAt: new Date().toISOString(),
+          })
+        }
+      })
+    }
+    return list
+  }, [featured?.documents, featured?.links])
 
   return (
     <main className="screen learn-screen">
@@ -432,36 +456,23 @@ export default function Learn({
             onPractice={(q, input) => onPractice(featured.id, q, input)}
           />
           
-          <div className="skill-links">
-            <h3>Resources & Documents</h3>
-            {featured.links && featured.links.length > 0 && (
-              <ul className="link-list">
-                {featured.links.map((link, i) => (
-                  <li key={i}>
-                    <a href={link} target="_blank" rel="noreferrer">{link}</a>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <form
-              className="link-add"
-              onSubmit={(e) => {
-                e.preventDefault()
-                if (newLink.trim()) {
-                  onAddLink(featured.id, newLink.trim())
-                  setNewLink("")
-                }
-              }}
-            >
-              <input 
-                type="url" 
-                placeholder="Paste a link to a PDF, Google Doc, etc." 
-                value={newLink} 
-                onChange={(e) => setNewLink(e.target.value)} 
-              />
-              <button type="submit"><Plus size={14}/></button>
-            </form>
-          </div>
+          <DocumentSection
+            title="Skill Documents & Resources"
+            description="Attach PDFs, cheat sheets, lecture notes, or web reference links."
+            documents={skillDocs}
+            onAddDocument={(doc) => {
+              if (onAddDocument) {
+                onAddDocument(featured.id, doc)
+              } else if (doc.url) {
+                onAddLink(featured.id, doc.url)
+              }
+            }}
+            onRemoveDocument={(docId) => {
+              if (onRemoveDocument) {
+                onRemoveDocument(featured.id, docId)
+              }
+            }}
+          />
         </>
       ) : (
         !adding && (

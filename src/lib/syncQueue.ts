@@ -3,7 +3,7 @@
 // layer drains it; this module only knows how to remember.
 import { hash } from "./mastery"
 
-export type Bucket = "goals" | "focusSessions" | "skills"
+export type Bucket = "goals" | "focusSessions" | "skills" | "enrollments"
 
 export interface Op {
   key: string
