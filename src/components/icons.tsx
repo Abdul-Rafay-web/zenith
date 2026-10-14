@@ -15,6 +15,7 @@ import { Fire } from "@phosphor-icons/react/dist/csr/Fire"
 import { GearSix } from "@phosphor-icons/react/dist/csr/GearSix"
 import { House } from "@phosphor-icons/react/dist/csr/House"
 import { Info as PInfo } from "@phosphor-icons/react/dist/csr/Info"
+import { Lightning } from "@phosphor-icons/react/dist/csr/Lightning"
 import { MapTrifold } from "@phosphor-icons/react/dist/csr/MapTrifold"
 import { Pause as PPause } from "@phosphor-icons/react/dist/csr/Pause"
 import { Play as PPlay } from "@phosphor-icons/react/dist/csr/Play"
@@ -25,11 +26,11 @@ import { Target } from "@phosphor-icons/react/dist/csr/Target"
 import { Trash } from "@phosphor-icons/react/dist/csr/Trash"
 import { X as PX } from "@phosphor-icons/react/dist/csr/X"
 
-type Props = { size?: number; strokeWidth?: number; className?: string }
+type Props = { size?: number; strokeWidth?: number; className?: string; style?: React.CSSProperties }
 
 const make = (Icon: ComponentType<IconProps>, weight: IconProps["weight"] = "bold") =>
-  function ZenithIcon({ size = 18, className }: Props) {
-    return <Icon size={size} weight={weight} className={className} aria-hidden />
+  function ZenithIcon({ size = 18, className, style }: Props) {
+    return <Icon size={size} weight={weight} className={className} style={style} aria-hidden />
   }
 
 export const ArrowLeft = make(PArrowLeft)
@@ -54,3 +55,4 @@ export const Settings = make(GearSix, "duotone")
 export const Sparkles = make(Sparkle, "fill")
 export const Trash2 = make(Trash, "duotone")
 export const X = make(PX)
+export const Zap = make(Lightning, "fill")

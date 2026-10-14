@@ -163,6 +163,7 @@ export function toggleTrackTask(
   state: ZenithState,
   targetTaskId: string,
   dateStr = todayDateStr(),
+  specificTrackId?: string,
 ): ZenithState {
   const enrolled = getEnrolledTracks(state)
   if (!enrolled.length) return state
@@ -180,30 +181,43 @@ export function toggleTrackTask(
     }
   }
 
-  // Determine current completed state (if completed in any track, next state is uncompleted)
+  // Determine current completed state
   let currentlyCompleted = false
-  for (const { enrollment, template } of enrolled) {
-    const trackTaskId = sharedKey
-      ? template.tasks.find((t) => t.sharedKey === sharedKey)?.id
-      : targetTaskId
+  if (specificTrackId) {
+    const targetEnrollment = enrolled.find((e) => e.enrollment.trackId === specificTrackId)
+    if (targetEnrollment) {
+      currentlyCompleted = Boolean(
+        targetEnrollment.enrollment.completions?.[dateStr]?.includes(targetTaskId),
+      )
+    }
+  } else {
+    for (const { enrollment, template } of enrolled) {
+      const trackTaskId = sharedKey
+        ? template.tasks.find((t) => t.sharedKey === sharedKey)?.id
+        : targetTaskId
 
-    if (
-      trackTaskId &&
-      enrollment.completions?.[dateStr]?.includes(trackTaskId)
-    ) {
-      currentlyCompleted = true
-      break
+      if (
+        trackTaskId &&
+        enrollment.completions?.[dateStr]?.includes(trackTaskId)
+      ) {
+        currentlyCompleted = true
+        break
+      }
     }
   }
 
   const nextCompletedState = !currentlyCompleted
 
-  // Update completions across all relevant tracks
+  // Update completions
   const nextEnrollments = state.enrollments.map((enrollment) => {
+    if (specificTrackId && enrollment.trackId !== specificTrackId) {
+      return enrollment
+    }
+
     const template = getTrackById(enrollment.trackId, enrollment.variant)
     if (!template) return enrollment
 
-    const matchingTask = sharedKey
+    const matchingTask = sharedKey && !specificTrackId
       ? template.tasks.find((t) => t.sharedKey === sharedKey)
       : template.tasks.find((t) => t.id === targetTaskId)
 

@@ -109,6 +109,8 @@ export interface TaskTemplate {
   chemicalKey?: string
   actionLabel?: string
   setupSteps?: string[]
+  howTo?: string[]
+  practicalTips?: string
 }
 
 export interface MetricDef {

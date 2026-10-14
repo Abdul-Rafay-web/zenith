@@ -68,8 +68,10 @@ function EvidenceBadge({ evidence }: { evidence: Evidence }) {
   return <span className={`evidence-pill ${meta.class}`}>{meta.label}</span>
 }
 
+import { getTaskGuide } from "../data/tracks/taskInstructions"
+
 // ----------------------------------------------------------------------
-// 1. Why Sheet / Mechanism Drawer
+// 1. Why Sheet / Mechanism Drawer with Step-by-Step Instructions
 // ----------------------------------------------------------------------
 function WhySheet({
   task,
@@ -78,10 +80,12 @@ function WhySheet({
   task: DeduplicatedTask | TaskTemplate
   onClose: () => void
 }) {
+  const guide = getTaskGuide(task.id, task.title, task.why)
+
   return (
     <div className="sheet-backdrop" onClick={onClose} role="presentation">
       <section
-        className="sheet why-sheet"
+        className="sheet why-sheet task-howto-sheet"
         role="dialog"
         aria-labelledby="why-title"
         onClick={(e) => e.stopPropagation()}
@@ -95,14 +99,39 @@ function WhySheet({
           <div className="why-eyebrow">
             <EvidenceBadge evidence={task.evidence} />
             {task.window && <span className="window-pill">{task.window}</span>}
+            <span className="timing-pill">⏱️ {guide.timing}</span>
           </div>
           <h2 id="why-title">{task.title}</h2>
         </div>
 
         <div className="why-content">
+          {/* Step-by-Step Execution Guide */}
+          <div className="why-block howto-block">
+            <h3>How to Do This Task (Step-by-Step Protocol)</h3>
+            <div className="step-guide-list">
+              {guide.steps.map((step, idx) => (
+                <div key={idx} className="step-guide-item">
+                  <span className="step-guide-num">{idx + 1}</span>
+                  <p>{step}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="why-block">
             <h3>Biological Mechanism</h3>
             <p>{task.why}</p>
+          </div>
+
+          <div className="tips-grid">
+            <div className="tip-box protip">
+              <span className="tip-label">💡 Pro-Tip</span>
+              <p>{guide.proTip}</p>
+            </div>
+            <div className="tip-box pitfall">
+              <span className="tip-label">⚠️ Common Pitfall</span>
+              <p>{guide.commonPitfall}</p>
+            </div>
           </div>
 
           <div className="why-block">
@@ -111,23 +140,6 @@ function WhySheet({
               <strong>Ref:</strong> {task.source}
             </p>
           </div>
-
-          {"contributingTracks" in task && task.contributingTracks && (
-            <div className="why-block">
-              <h3>Contributing Tracks</h3>
-              <div className="contributing-chips">
-                {task.contributingTracks.map((ct) => (
-                  <span key={ct.trackId} className="track-badge-chip">
-                    {ct.trackTitle}
-                  </span>
-                ))}
-              </div>
-              <p className="why-subtext">
-                Completing this shared foundation task simultaneously credits all
-                enrolled tracks.
-              </p>
-            </div>
-          )}
         </div>
 
         <button
@@ -681,7 +693,7 @@ function MetricLogModal({
 // ----------------------------------------------------------------------
 // 7. Interactive Chemical Wheel SVG Component
 // ----------------------------------------------------------------------
-function ChemicalWheel({
+export function ChemicalWheel({
   state,
   onSelectChemical,
 }: {

@@ -40,6 +40,7 @@ const Focus = lazy(() => import("./components/Focus"))
 const Review = lazy(() => import("./components/Review"))
 const Legal = lazy(() => import("./components/Legal"))
 const Tracks = lazy(() => import("./components/Tracks"))
+const PathsView = lazy(() => import("./components/PathsView"))
 import type { PracticeInput } from "./lib/store"
 
 type Screen = "today" | "paths" | "tracks" | "learn" | "focus" | "review"
@@ -498,7 +499,7 @@ function Today({
             <button
               type="button"
               className="ghost-link"
-              onClick={() => onNavigate("tracks")}
+              onClick={() => onNavigate("paths")}
             >
               Open Tracks <ChevronRight size={14} />
             </button>
@@ -599,57 +600,7 @@ function Today({
   )
 }
 
-function Paths({
-  goals,
-  onOpenGoal,
-  onAdd,
-}: {
-  goals: Goal[]
-  onOpenGoal: (goal: Goal) => void
-  onAdd: () => void
-}) {
-  return (
-    <main className="screen paths-screen">
-      <div className="page-title">
-        <p className="eyebrow">Your long view</p>
-        <h1>Paths</h1>
-        <p>Plans change. Direction stays visible.</p>
-      </div>
-      <div className="goal-list">
-        {goals.map((goal, index) => (
-          <button
-            type="button"
-            className="goal-row"
-            key={goal.id}
-            onClick={() => onOpenGoal(goal)}
-          >
-            <span className={`goal-index accent-${goal.accent}`}>
-              {String(index + 1).padStart(2, "0")}
-            </span>
-            <span className="goal-row-content">
-              <span className="goal-row-meta">
-                {goal.horizon} · {goal.steps.length} milestones
-              </span>
-              <strong>{goal.title}</strong>
-              <span className="progress-track">
-                <i style={{ width: `${progressFor(goal)}%` }} />
-              </span>
-            </span>
-            <span className="goal-progress">{progressFor(goal)}%</span>
-            <ChevronRight size={20} />
-          </button>
-        ))}
-      </div>
-      <button type="button" className="new-path-button" onClick={onAdd}>
-        <Plus size={20} />
-        <span>
-          <strong>Set a new direction</strong>
-          <small>Turn an ambition into a path</small>
-        </span>
-      </button>
-    </main>
-  )
-}
+
 
 function GoalDetail({
   goal,
@@ -885,7 +836,6 @@ function BottomNav({
   }> = [
     { id: "today", label: "Today", icon: <Home size={20} /> },
     { id: "paths", label: "Paths", icon: <Map size={20} /> },
-    { id: "tracks", label: "Tracks", icon: <Sparkles size={20} /> },
     { id: "learn", label: "Learn", icon: <BrainCircuit size={20} /> },
     { id: "focus", label: "Focus", icon: <CircleDot size={21} /> },
     { id: "review", label: "Review", icon: <BarChart3 size={20} /> },
@@ -1292,9 +1242,9 @@ export default function App() {
     })
   }
 
-  function handleToggleTrackTask(taskId: string) {
+  function handleToggleTrackTask(taskId: string, specificTrackId?: string) {
     import("./lib/tracks").then(({ toggleTrackTask }) => {
-      setState(toggleTrackTask(state, taskId))
+      setState((curr) => toggleTrackTask(curr, taskId, undefined, specificTrackId))
     })
   }
 
@@ -1523,29 +1473,22 @@ export default function App() {
                 onNavigate={setScreen}
               />
             )}
-            {screen === "paths" && (
-              <Paths
+            {(screen === "paths" || screen === "tracks") && (
+              <PathsView
+                state={state}
                 goals={state.goals}
                 onOpenGoal={openGoal}
-                onAdd={() => setAddingGoal(true)}
-              />
-            )}
-            {screen === "tracks" && (
-              <Tracks
-                state={state}
-                onEnroll={handleEnrollTrack}
-                onUnenroll={handleUnenrollTrack}
-                onToggleTask={handleToggleTrackTask}
+                onAddGoal={() => setAddingGoal(true)}
+                onEnrollTrack={handleEnrollTrack}
+                onUnenrollTrack={handleUnenrollTrack}
+                onToggleTrackTask={handleToggleTrackTask}
                 onAdvancePhase={handleAdvancePhase}
-                onLogMetric={handleLogTrackMetric}
+                onLogTrackMetric={handleLogTrackMetric}
                 onRecordUrgeSurf={handleRecordUrgeSurf}
                 onSetIntention={handleSetIntention}
+                onStartFocus={startFocus}
                 onAddTrackDocument={handleAddTrackDocument}
                 onRemoveTrackDocument={handleRemoveTrackDocument}
-                onOpenFocus={(title, mins) => {
-                  setFocusSelection({ goalId: "track", stepId: undefined })
-                  setScreen("focus")
-                }}
               />
             )}
             {screen === "focus" && (
